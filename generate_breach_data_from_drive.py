@@ -225,6 +225,26 @@ def grand_total_load(zf, summary_entry, sst):
     return round(best)
 
 
+
+def grand_total_load_from_rows(rows):
+    best = 0
+    for _, row in sorted(rows.items()):
+        grand_col = None
+        for col, value in sorted(row.items()):
+            if norm(value) in ("grand summary:", "grand total"):
+                grand_col = col
+                break
+        if grand_col is None:
+            continue
+        for col, value in sorted(row.items()):
+            if col <= grand_col:
+                continue
+            num = to_number(value)
+            if num > 0:
+                best = max(best, num)
+                break
+    return round(best)
+
 def date_key(file_name):
     match = re.search(r"(20\d{6})", os.path.splitext(file_name)[0])
     return match.group(1) if match else datetime.now().strftime("%Y%m%d")
@@ -385,23 +405,3 @@ def main():
         print(f"Reading {item['name']}")
         content = download_public_drive_file(item["id"], item["size"])
         records.append(parse_workbook(item["name"], content))
-    records.sort(key=lambda r: str(r.get("dateKey", "")))
-    root = {
-        "generatedAt": datetime.now().isoformat(timespec="seconds"),
-        "sourceFolder": f"google-drive-public:{FOLDER_ID}",
-        "records": records,
-    }
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    OUT_FILE.write_text(
-        "window.BREACH_DASHBOARD_DATA = " + json.dumps(root, ensure_ascii=False) + ";",
-        encoding="utf-8",
-    )
-    (OUT_DIR / "index.html").write_text(
-        "<!doctype html><title>Breach Data</title><h1>Breach data generated</h1><p>Use breach-data.js from this site.</p>",
-        encoding="utf-8",
-    )
-    print(f"Generated {OUT_FILE}")
-
-
-if __name__ == "__main__":
-    main()
